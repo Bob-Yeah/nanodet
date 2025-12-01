@@ -151,7 +151,10 @@ def main():
                     break
             else:
                 break
-
+        if args.save_result:
+            vid_writer.release()
+        cap.release()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
