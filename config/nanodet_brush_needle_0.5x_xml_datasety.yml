@@ -1,5 +1,5 @@
 #Config File example
-save_dir: workspace/nanodet_needle2
+save_dir: workspace/nanodet_0.5x
 model:
   weight_averager:
     name: ExpMovingAverager
@@ -9,12 +9,12 @@ model:
     detach_epoch: 10
     backbone:
       name: ShuffleNetV2
-      model_size: 1.0x
+      model_size: 0.5x
       out_stages: [2,3,4]
       activation: LeakyReLU
     fpn:
       name: GhostPAN
-      in_channels: [116, 232, 464]
+      in_channels: [48, 96, 192]
       out_channels: 96
       kernel_size: 5
       num_extra_level: 1
@@ -55,7 +55,7 @@ model:
       activation: LeakyReLU
       reg_max: 7
 
-class_names: &class_names ['Base','Cap','Tip']  #Please fill in the category names (not include background category)
+class_names: &class_names ['brush','base','cap']  #Please fill in the category names (not include background category)
 data:
   train:
     name: CocoDataset

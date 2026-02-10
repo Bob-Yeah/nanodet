@@ -23,8 +23,11 @@ import numpy as np
 def get_flip_matrix(prob=0.5):
     F = np.eye(3)
     if random.random() < prob:
-        F[0, 0] = -1
-    return F
+        if (random.random() < prob / 2):
+            F[0, 0] = -1
+        else:
+            F[1, 1] = -1
+    return F 
 
 
 def get_perspective_matrix(perspective=0.0):

@@ -17,8 +17,11 @@ import datetime
 import os
 import warnings
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
+import torch.nn as nn
+import onnxruntime as ort
 
 from nanodet.data.collate import naive_collate
 from nanodet.data.dataset import build_dataset
@@ -36,7 +39,7 @@ from nanodet.util import (
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--task", type=str, default="val", help="task to run, test or val"
+        "--task", type=str, default="test", help="task to run, test or val"
     )
     parser.add_argument("--config", type=str, help="model config file(.yml) path")
     parser.add_argument("--model", type=str, help="ckeckpoint file(.ckpt) path")
@@ -59,7 +62,10 @@ def main(args):
     cfg.update({"test_mode": args.task})
 
     logger.info("Setting up data...")
-    val_dataset = build_dataset(cfg.data.val, args.task)
+    if (args.task == "test"):
+        val_dataset = build_dataset(cfg.data.test, args.task)
+    else:
+        val_dataset = build_dataset(cfg.data.val, args.task)
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=cfg.device.batchsize_per_gpu,
@@ -72,16 +78,74 @@ def main(args):
     evaluator = build_evaluator(cfg.evaluator, val_dataset)
 
     logger.info("Creating model...")
-    task = TrainingTask(cfg, evaluator)
-
-    ckpt = torch.load(args.model)
-    if "pytorch-lightning_version" not in ckpt:
-        warnings.warn(
-            "Warning! Old .pth checkpoint is deprecated. "
-            "Convert the checkpoint with tools/convert_old_checkpoint.py "
-        )
-        ckpt = convert_old_model(ckpt)
-    task.load_state_dict(ckpt["state_dict"])
+    
+    # Check if the model is ONNX format
+    if args.model.endswith('.onnx'):
+        logger.info("Loading ONNX model using ONNX Runtime...")
+        try:
+            # Create ONNX Runtime session
+            onnx_session = ort.InferenceSession(args.model)
+            logger.info("ONNX model loaded successfully")
+            
+            # Get input and output names
+            input_name = onnx_session.get_inputs()[0].name
+            output_names = [output.name for output in onnx_session.get_outputs()]
+            
+            logger.info(f"ONNX model input: {input_name}")
+            logger.info(f"ONNX model outputs: {output_names}")
+            
+            # Create a wrapper class for ONNX model to work with PyTorch Lightning
+            class ONNXModelWrapper(pl.LightningModule):
+                def __init__(self, session, input_name, output_names):
+                    super().__init__()
+                    self.session = session
+                    self.input_name = input_name
+                    self.output_names = output_names
+                
+                def forward(self, x):
+                    # Convert PyTorch tensor to numpy array
+                    if isinstance(x, torch.Tensor):
+                        x_np = x.detach().cpu().numpy()
+                    else:
+                        x_np = x
+                    
+                    # Run inference
+                    outputs = self.session.run(self.output_names, {self.input_name: x_np})
+                    
+                    # Convert outputs to PyTorch tensors
+                    return [torch.from_numpy(output) for output in outputs]
+                
+                def test_step(self, batch, batch_idx):
+                    # Preprocess batch input similar to TrainingTask
+                    batch_imgs = batch["img"]
+                    if isinstance(batch_imgs, list):
+                        batch_imgs = [img.to(self.device) for img in batch_imgs]
+                        from nanodet.data.batch_process import stack_batch_img
+                        batch_img_tensor = stack_batch_img(batch_imgs, divisible=32)
+                        batch["img"] = batch_img_tensor
+                    
+                    # Run inference
+                    outputs = self(batch["img"])
+                    
+                    # Return outputs in the same format as TrainingTask
+                    return outputs
+            
+            task = ONNXModelWrapper(onnx_session, input_name, output_names)
+            
+        except Exception as e:
+            logger.info(f"Failed to load ONNX model: {e}")
+            raise RuntimeError(f"ONNX model loading failed: {e}")
+    else:
+        # Load PyTorch checkpoint
+        task = TrainingTask(cfg, evaluator)
+        ckpt = torch.load(args.model)
+        if "pytorch-lightning_version" not in ckpt:
+            warnings.warn(
+                "Warning! Old .pth checkpoint is deprecated. "
+                "Convert the checkpoint with tools/convert_old_checkpoint.py "
+            )
+            ckpt = convert_old_model(ckpt)
+        task.load_state_dict(ckpt["state_dict"])
 
     if cfg.device.gpu_ids == -1:
         logger.info("Using CPU training")

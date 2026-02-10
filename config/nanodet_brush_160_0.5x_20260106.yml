@@ -1,5 +1,5 @@
 #Config File example
-save_dir: workspace/nanodet_needle2
+save_dir: workspace/nanodet_brush_160_0.5x_20260106
 model:
   weight_averager:
     name: ExpMovingAverager
@@ -9,12 +9,12 @@ model:
     detach_epoch: 10
     backbone:
       name: ShuffleNetV2
-      model_size: 1.0x
+      model_size: 0.5x
       out_stages: [2,3,4]
       activation: LeakyReLU
     fpn:
       name: GhostPAN
-      in_channels: [116, 232, 464]
+      in_channels: [48, 96, 192]
       out_channels: 96
       kernel_size: 5
       num_extra_level: 1
@@ -22,7 +22,7 @@ model:
       activation: LeakyReLU
     head:
       name: NanoDetPlusHead
-      num_classes: 3
+      num_classes: 1
       input_channel: 96
       feat_channels: 96
       stacked_convs: 2
@@ -47,7 +47,7 @@ model:
     # Auxiliary head, only use in training time.
     aux_head:
       name: SimpleConvHead
-      num_classes: 3
+      num_classes: 1
       input_channel: 192
       feat_channels: 192
       stacked_convs: 4
@@ -55,13 +55,13 @@ model:
       activation: LeakyReLU
       reg_max: 7
 
-class_names: &class_names ['Base','Cap','Tip']  #Please fill in the category names (not include background category)
+class_names: &class_names ['Brush']  #Please fill in the category names (not include background category)
 data:
   train:
     name: CocoDataset
-    img_path: datasets/Coco-Needle/images  #Please fill in train image path
-    ann_path: datasets/Coco-Needle/train.json  #Please fill in train xml path
-    input_size: [320,320] #[w,h]
+    img_path: datasets/Coco-Brush-1225/images  #Please fill in train image path
+    ann_path: datasets/Coco-Brush-1225/train.json  #Please fill in train xml path
+    input_size: [160,160] #[w,h]
     keep_ratio: True
     pipeline:
       perspective: 0.0
@@ -77,9 +77,17 @@ data:
       normalize: [[103.53, 116.28, 123.675], [57.375, 57.12, 58.395]]
   val:
     name: CocoDataset
-    img_path: datasets/Coco-Needle/images #Please fill in val image path
-    ann_path: datasets/Coco-Needle/val.json #Please fill in val xml path
-    input_size: [320,320] #[w,h]
+    img_path: datasets/Coco-Brush-1225/images #Please fill in val image path
+    ann_path: datasets/Coco-Brush-1225/val.json #Please fill in val xml path
+    input_size: [160,160] #[w,h]
+    keep_ratio: True
+    pipeline:
+      normalize: [[103.53, 116.28, 123.675], [57.375, 57.12, 58.395]]
+  test:
+    name: CocoDataset
+    img_path: datasets/Brush20260104/images #Please fill in val image path
+    ann_path: datasets/Brush20260104/test.json #Please fill in val xml path
+    input_size: [160,160] #[w,h]
     keep_ratio: True
     pipeline:
       normalize: [[103.53, 116.28, 123.675], [57.375, 57.12, 58.395]]
@@ -99,10 +107,10 @@ schedule:
     name: linear
     steps: 500
     ratio: 0.0001
-  total_epochs: 300
+  total_epochs: 1000
   lr_schedule:
     name: CosineAnnealingLR
-    T_max: 300
+    T_max: 1000
     eta_min: 0.00005
   val_intervals: 10
 grad_clip: 35

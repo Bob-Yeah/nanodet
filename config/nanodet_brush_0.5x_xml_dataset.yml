@@ -1,5 +1,5 @@
 #Config File example
-save_dir: workspace/nanodet_needle2
+save_dir: workspace/nanodet_m
 model:
   weight_averager:
     name: ExpMovingAverager
@@ -9,12 +9,12 @@ model:
     detach_epoch: 10
     backbone:
       name: ShuffleNetV2
-      model_size: 1.0x
+      model_size: 0.5x
       out_stages: [2,3,4]
       activation: LeakyReLU
     fpn:
       name: GhostPAN
-      in_channels: [116, 232, 464]
+      in_channels: [48, 96, 192]
       out_channels: 96
       kernel_size: 5
       num_extra_level: 1
@@ -22,7 +22,7 @@ model:
       activation: LeakyReLU
     head:
       name: NanoDetPlusHead
-      num_classes: 3
+      num_classes: 1
       input_channel: 96
       feat_channels: 96
       stacked_convs: 2
@@ -47,7 +47,7 @@ model:
     # Auxiliary head, only use in training time.
     aux_head:
       name: SimpleConvHead
-      num_classes: 3
+      num_classes: 1
       input_channel: 192
       feat_channels: 192
       stacked_convs: 4
@@ -55,12 +55,12 @@ model:
       activation: LeakyReLU
       reg_max: 7
 
-class_names: &class_names ['Base','Cap','Tip']  #Please fill in the category names (not include background category)
+class_names: &class_names ['brush']  #Please fill in the category names (not include background category)
 data:
   train:
     name: CocoDataset
-    img_path: datasets/Coco-Needle/images  #Please fill in train image path
-    ann_path: datasets/Coco-Needle/train.json  #Please fill in train xml path
+    img_path: datasets/Coco-brush/images  #Please fill in train image path
+    ann_path: datasets/Coco-brush/train.json  #Please fill in train xml path
     input_size: [320,320] #[w,h]
     keep_ratio: True
     pipeline:
@@ -77,8 +77,8 @@ data:
       normalize: [[103.53, 116.28, 123.675], [57.375, 57.12, 58.395]]
   val:
     name: CocoDataset
-    img_path: datasets/Coco-Needle/images #Please fill in val image path
-    ann_path: datasets/Coco-Needle/val.json #Please fill in val xml path
+    img_path: datasets/Coco-brush/images #Please fill in val image path
+    ann_path: datasets/Coco-brush/val.json #Please fill in val xml path
     input_size: [320,320] #[w,h]
     keep_ratio: True
     pipeline:
